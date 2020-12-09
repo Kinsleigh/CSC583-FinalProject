@@ -1,16 +1,19 @@
 
 /*=============================================================================
- |   Assignment:  Assignment 3
+ |   Assignment:  Final Project
+ |        Class:  QueryEngine
  |       Author:  Kinsleigh Wong
  |        NetID:  kinsleighwong
  |
  |       Course:  CSC 583
  |   Instructor:  Mihai Surdeanu
  |          TAs:  Mithun Paul
- |     Due Date:  10/28/2020, 11:59pm
+ |     Due Date:  12/9/2020, 11:59pm
  +-----------------------------------------------------------------------------
- |  Description: This class is meant to create a Lucene index given a set 
- |               of documents along with the words within the documents. 
+ |  Description: This class implements an index for the Final Project without
+ |               lemmatization nor stemming. It reads from the folder "indexes"
+ |               in the resources, and creates the index if that folder is 
+ |                empty. 
  |              
  *===========================================================================*/
 package edu.arizona.cs;
@@ -24,7 +27,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
 import java.util.regex.Pattern; 
-// stuff i added
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -47,22 +49,26 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.similarities.BooleanSimilarity;
 import org.apache.lucene.search.similarities.ClassicSimilarity;
 
 
-
 public class QueryEngine {
+    //variables that control where to read from/write to
     String inputFilePath ="training";
     String indexDir = "indexes";
     String questionFile = "questions.txt";
+
+    //folder for Lucene
     StandardAnalyzer analyzer = new StandardAnalyzer();
     Directory index;
-    double score;
+
+    //variables used to determine if we display the score
+    double score = 0.0;
     Boolean scoringOn = true;
 
     public QueryEngine() {
         try {
-            score = 0.0;
             File indDir = new File(getClass().getClassLoader().getResource(indexDir).getFile());
             this.index = FSDirectory.open(indDir.toPath());
 
@@ -97,7 +103,8 @@ public class QueryEngine {
                     query += (" " + line);
                 } else {
                     try {
-                        if(search(query, line)) {
+                        if(search_modified(query, line)) {
+                        //if(search(query, line)) {
                             successes++;
                         } else {
                             fails++;
@@ -217,15 +224,15 @@ public class QueryEngine {
         IndexSearcher searcher = new IndexSearcher(reader);
         TopDocs docs = searcher.search(q, hitsPerPage);
 
-        String[] answers = answer.split("\\|");
 
         ScoreDoc[] hits = docs.scoreDocs;
-        String hit = searcher.doc(hits[0].doc).get("docid");
-        System.out.println("First result : " + hit);
         //determine whether first hit is a match or not
+        String hit = searcher.doc(hits[0].doc).get("docid");
+        System.out.print("First hit: " + hit);
+        String[] answers = answer.split("\\|");
         for(int i = 0; i < answers.length; ++i) {
             if(answers[i].compareTo(hit) == 0) {
-                System.out.println(answers[i] + " " + hit);
+                //System.out.println(answers[i] + " " + hit);
                 retVal = true;
                 break;
             }
@@ -249,7 +256,7 @@ public class QueryEngine {
             }
         }
         //if we find the top 20 hits were a miss, we consider it to be have failed.     
-        System.out.println("\nNo matches were found in top ten.");
+        System.out.println("\nNo matches were found in top twenty.");
         System.out.println("Actual answer: " + answer + "\n");
         }
 
@@ -259,22 +266,55 @@ public class QueryEngine {
     }
 
     //this is the search function used for questions part 3
-    public String search_modified(String query) throws Exception {
+    public Boolean search_modified(String query, String answer) throws Exception {
         int hitsPerPage = 10;
         QueryParser parser = new QueryParser("body", analyzer);
         Query q = parser.parse(parser.escape(query));
+        Boolean retVal = false;
 
         IndexReader reader = DirectoryReader.open(this.index);
         IndexSearcher searcher = new IndexSearcher(reader);
         //ClassicSimilarity is the implementation of TFIDFSimilarity
-        searcher.setSimilarity(new ClassicSimilarity());
+        searcher.setSimilarity(new BooleanSimilarity());
         TopDocs docs = searcher.search(q, hitsPerPage);
         ScoreDoc[] hits = docs.scoreDocs;        
 
         String hit = searcher.doc(hits[0].doc).get("docid");
+        System.out.print("First hit: " + hit);
+
+        //determine whether first hit is a match or not
+        String[] answers = answer.split("\\|");
+        for(int i = 0; i < answers.length; ++i) {
+            if(answers[i].compareTo(hit) == 0) {
+                System.out.println(answers[i] + " " + hit);
+                retVal = true;
+                break;
+            }
+        }
+
+        //we measure performanced with Mean Reciprocal Rank (MRR)
+        //going through all the top 20 relevant documents, 
+        if(scoringOn) {
+        for(int i=0; i < hits.length; ++i) {
+            hit = searcher.doc(hits[i].doc).get("docid");
+            //going through all the possible answers,
+            for(int j = 0; j < answers.length; ++j) {
+                //if we found a match, we calculate the score.
+                if(answers[j].compareTo(hit) == 0) {
+                    System.out.println("\nResults number " + i + " matched " + answers[j] + "\n");
+                    score += ( 1 / (double) (i + 1));
+                    reader.close();
+                    return retVal;
+                }
+            }
+        }
+        //if we find the top 20 hits were a miss, we consider it to be have failed.     
+        System.out.println("\nNo matches were found in top twenty.");
+        System.out.println("Actual answer: " + answer + "\n");
+        }
         reader.close();
 
-        return hit;
+        return retVal;
     }
 
 }

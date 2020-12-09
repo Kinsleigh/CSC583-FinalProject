@@ -1,15 +1,19 @@
+
 /*=============================================================================
- |   Assignment:  Assignment 3
+ |   Assignment:  Final Project
+ |        Class:  QueryEngineSimplest
  |       Author:  Kinsleigh Wong
  |        NetID:  kinsleighwong
  |
  |       Course:  CSC 583
  |   Instructor:  Mihai Surdeanu
  |          TAs:  Mithun Paul
- |     Due Date:  10/28/2020, 11:59pm
+ |     Due Date:  12/9/2020, 11:59pm
  +-----------------------------------------------------------------------------
- |  Description: This class is meant to create a Lucene index given a set 
- |               of documents along with the words within the documents. 
+ |  Description: This class implements an index for the Final Project without
+ |               lemmatization nor stemming. It reads from the folder "indexes"
+ |               in the resources, and creates the index if that folder is 
+ |                empty. 
  |              
  *===========================================================================*/
 package edu.arizona.cs;
@@ -49,6 +53,8 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.similarities.BooleanSimilarity;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
 
 import java.util.Properties;
 import edu.stanford.nlp.ling.*;
@@ -74,6 +80,11 @@ public class QueryEngineSimplest {
     // for Stanford core nlp
     Properties props;
     StanfordCoreNLP pipeline;
+
+    //variables used to determine if we display the score
+    double score = 0.0;
+    Boolean scoringOn = true;
+
 
     public QueryEngineSimplest() {
         categorySet = new HashSet<String>(Arrays.asList(categories));
@@ -158,26 +169,16 @@ public class QueryEngineSimplest {
                     content = line;
                 } else {
                     try {
-                        topResult = search(query, metadata, content);
+                        if(search(query, line, metadata, content)) {
+                            successes++;
+                        } else {
+                            fails++;
+                        }
                     } catch(Exception e) {
                         System.out.println("SEARCHING FOR QUERY FAILED");
                         e.printStackTrace();
                     }                    
                     
-                    String[] answers = line.split("\\|");
-                    int i = 0;
-                    for(i = 0; i < answers.length; ++i) {
-                        //should i make things case-insensitive?
-                        System.out.println(answers[i] + " vs " + topResult);
-                        if(answers[i].compareTo(topResult) == 0) {
-                         successes++;
-                         break;
-                        }
-                    }
-
-                    if(i >= answers.length) {
-                        fails++;
-                    }
                     count = -1;
                 }
                 count++;
@@ -193,6 +194,8 @@ public class QueryEngineSimplest {
         }
         System.out.println("Successes: " + successes);
         System.out.println("Fails: " + fails);
+        System.out.println("Score: " + score / (successes + fails));
+
         return ((double) successes) / (successes + fails);
     }
 
@@ -279,11 +282,10 @@ public class QueryEngineSimplest {
 
 
     //this is the search function used for question 1
-   public String search(String query, String metadata, String content) throws Exception {
-        int hitsPerPage = 5;
+   public Boolean search(String query, String answer, String metadata, String content) throws Exception {
+        int hitsPerPage = 20;
         String hit = "";
-        System.out.println("\n---------------------------------------");
-        System.out.println(query);
+        Boolean retVal = false, firstFound = true;
         CoreDocument document = pipeline.processToCoreDocument(query);
 
         query = "";
@@ -293,16 +295,19 @@ public class QueryEngineSimplest {
         //System.out.println(query);
         IndexReader reader = DirectoryReader.open(this.index);
         IndexSearcher searcher = new IndexSearcher(reader);
-        
+        //searcher.setSimilarity(new BooleanSimilarity());
+        //searcher.setSimilarity(new ClassicSimilarity());
+        String[] answers = answer.split("\\|");
+
+
         if(!metadata.equals("")) {
-            System.out.println("METADATA: " + metadata);
+            //System.out.println("METADATA: " + metadata);
             QueryParser parser = new QueryParser("body", analyzer);
             if(content.startsWith("The") || content.startsWith("the")) {
                 content = content.split(" ", 2)[1];
             }
             Query q = parser.parse("\"" + content + "\"");
             TopDocs docs = searcher.search(q, hitsPerPage);
-            //System.out.println(docs);
             ScoreDoc[] hits = docs.scoreDocs;
 
             if(hits.length == 0) {
@@ -311,12 +316,9 @@ public class QueryEngineSimplest {
                 q = parser.parse(parser.escape(query));
                 docs = searcher.search(q, hitsPerPage);
                 hits = docs.scoreDocs;
-                System.out.println(hits.length + " " + searcher.doc(hits[0].doc).get("docid"));
+                //System.out.println(hits.length + " " + searcher.doc(hits[0].doc).get("docid"));
             } 
-            for(int i = 0; i < hits.length; ++i) {
-                System.out.println(searcher.doc(hits[i].doc).get("docid"));
-                //System.out.println(searcher.doc(hits[i].doc).get("body"));
-            }
+
             hit = searcher.doc(hits[0].doc).get("docid");
             Boolean exists = false, done = false;
             CoreLabel tok = null;
@@ -347,13 +349,42 @@ public class QueryEngineSimplest {
                             break;
                         }
                     }
-                    if(done)
+
+                    if(done) {
+                        for(int j = 0; j < answers.length; ++j) {
+                            //if we found a match, we calculate the score.
+                            if(answers[j].compareTo(hit) == 0) {
+                                System.out.println("Results number " + docInd + " matched " + answers[j] + "\n");
+                                score += ( 1 / (double) (docInd + 1));
+                                reader.close();
+                                return firstFound;
+                            }
+                        }
+                        if(firstFound)
+                            hit = new_hit;
+                       firstFound = false; 
+                       if(!scoringOn)
                         break;
+                    }
                 }
             }
             if(!new_hit.equals("")) {
                 hit = new_hit;
             }
+
+            System.out.println("First hit: " + hit);
+
+            for(int i = 0; i < answers.length; ++i) {
+                if(answers[i].compareTo(hit) == 0) {
+                    System.out.println("First hit, gotem!\n");
+                    score += 1;
+                    reader.close();
+                    return true;
+                }
+            }
+
+            System.out.println("No matches were found in top twenty.");
+            System.out.println("Actual answer: " + answer + "\n");
 
             reader.close();
         } else {
@@ -363,11 +394,42 @@ public class QueryEngineSimplest {
             TopDocs docs = searcher.search(q, hitsPerPage);
             ScoreDoc[] hits = docs.scoreDocs;
 
+            //determine whether first hit is a match or not
             hit = searcher.doc(hits[0].doc).get("docid");
+            System.out.println("First hit: " + hit);
+
+            for(int i = 0; i < answers.length; ++i) {
+                if(answers[i].compareTo(hit) == 0) {
+                    retVal = true;
+                    break;
+                }
+            }
+
+            if(scoringOn) {
+                //going through all the top 20 relevant documents, 
+                for(int i = 0; i < hits.length; ++i) {
+                    hit = searcher.doc(hits[i].doc).get("docid");
+                    //going through all the possible answers,
+                    for(int j = 0; j < answers.length; ++j) {
+                        //if we found a match, we calculate the score.
+                        if(answers[j].compareTo(hit) == 0) {
+                            System.out.println("Results number " + i + " matched " + answers[j] + "\n");
+                            score += ( 1 / (double) (i + 1));
+                            reader.close();
+                            return retVal;
+                        }
+                    }
+                }
+                System.out.println("No matches were found in top twenty.");
+                System.out.println("Actual answer: " + answer + "\n");
+            } else {
+                System.out.println(hit + " vs " + answer + "\n");
+            }
+
             reader.close();
         }
         
-        return hit;
+        return retVal;
     }
 
 }
