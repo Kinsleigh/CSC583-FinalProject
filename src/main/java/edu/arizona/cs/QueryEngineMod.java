@@ -1,15 +1,19 @@
 /*=============================================================================
- |   Assignment:  Assignment 3
+ |   Assignment:  Final Project
+ |        Class:  QueryEngineMod
  |       Author:  Kinsleigh Wong
  |        NetID:  kinsleighwong
  |
  |       Course:  CSC 583
  |   Instructor:  Mihai Surdeanu
  |          TAs:  Mithun Paul
- |     Due Date:  10/28/2020, 11:59pm
+ |     Due Date:  12/9/2020, 11:59pm
  +-----------------------------------------------------------------------------
- |  Description: This class is meant to create a Lucene index given a set 
- |               of documents along with the words within the documents. 
+ |  Description: This class implements an index for the Final Project with the
+ |               grad portion implemented, sans lemmatization nor stemming.
+ |               This takes a long time to read through the files, so run at 
+ |               your own discretion. Given enough time though, this would be
+ |               the class I would use to generate an index. 
  |              
  *===========================================================================*/
 package edu.arizona.cs;

@@ -1,4 +1,3 @@
-
 /*=============================================================================
  |   Assignment:  Final Project
  |        Class:  QueryEngineSimplest
@@ -10,10 +9,11 @@
  |          TAs:  Mithun Paul
  |     Due Date:  12/9/2020, 11:59pm
  +-----------------------------------------------------------------------------
- |  Description: This class implements an index for the Final Project without
- |               lemmatization nor stemming. It reads from the folder "indexes"
- |               in the resources, and creates the index if that folder is 
- |                empty. 
+ |  Description: This class implements an index for the Final Project with the
+ |               grad portion implemented, sans lemmatization nor stemming.
+ |               This is a modified version of QueryEngineMod, producing the
+ |               same output at the cost of a longer search time. This is the
+ |               class that performed the best. 
  |              
  *===========================================================================*/
 package edu.arizona.cs;
@@ -104,6 +104,7 @@ public class QueryEngineSimplest {
         }
     }
 
+    //determines meaning within parenthesis if parenthesis exist in the title
     private String processTitle(String title) {
         String[] res = title.split("\\(");
         if(res.length > 1) {
@@ -149,6 +150,7 @@ public class QueryEngineSimplest {
     }
 
 
+    //goes through all the questions and accumulates the P@1 score
     public double processQuestions() throws IOException {
         File input = new File(getClass().getClassLoader().getResource(questionFile).getFile());
         int successes = 0, fails = 0, count = 0;
@@ -199,9 +201,7 @@ public class QueryEngineSimplest {
         return ((double) successes) / (successes + fails);
     }
 
-    /*
-
-     */
+    //adds the unprocessed article to the document
     private void addArticle(String article, String contents) throws IOException {
         if(article.equals("") || contents.equals("")) {
             return;
@@ -281,7 +281,7 @@ public class QueryEngineSimplest {
     }
 
 
-    //this is the search function used for question 1
+    //search function that also implements the grad functionality
    public Boolean search(String query, String answer, String metadata, String content) throws Exception {
         int hitsPerPage = 20;
         String hit = "";
@@ -295,7 +295,7 @@ public class QueryEngineSimplest {
         //System.out.println(query);
         IndexReader reader = DirectoryReader.open(this.index);
         IndexSearcher searcher = new IndexSearcher(reader);
-        //searcher.setSimilarity(new BooleanSimilarity());
+        //searcher.setSimilarity(new BooleanSimilarity()); //uncomment one to change scoring
         //searcher.setSimilarity(new ClassicSimilarity());
         String[] answers = answer.split("\\|");
 

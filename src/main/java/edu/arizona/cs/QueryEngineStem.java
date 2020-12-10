@@ -1,16 +1,16 @@
-
 /*=============================================================================
- |   Assignment:  Assignment 3
+ |   Assignment:  Final Project
+ |        Class:  QueryEngineStem
  |       Author:  Kinsleigh Wong
  |        NetID:  kinsleighwong
  |
  |       Course:  CSC 583
  |   Instructor:  Mihai Surdeanu
  |          TAs:  Mithun Paul
- |     Due Date:  10/28/2020, 11:59pm
+ |     Due Date:  12/9/2020, 11:59pm
  +-----------------------------------------------------------------------------
- |  Description: This class is meant to create a Lucene index given a set 
- |               of documents along with the words within the documents. 
+ |  Description: This class implements an index for the Final Project with the
+ |               grad portion and stemming implemented.
  |              
  *===========================================================================*/
 package edu.arizona.cs;
@@ -143,9 +143,9 @@ String[] res = title.split("\\(");
         }
         return "";    }
 
-
+    //goes through all the questions and accumulates the P@1 score
     public double processQuestions() throws IOException {
-File input = new File(getClass().getClassLoader().getResource(questionFile).getFile());
+        File input = new File(getClass().getClassLoader().getResource(questionFile).getFile());
         int successes = 0, fails = 0, count = 0;
         String query = "", topResult = null, metadata = "", content = "";
 
